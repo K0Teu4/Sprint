@@ -1,0 +1,1 @@
+# ProGuard-правила для Sprint
