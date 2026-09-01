@@ -55,7 +55,9 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.text.TextDecoration
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -403,7 +405,7 @@ private fun TaskRow(task: TaskEntity, edit: (TaskEntity) -> Unit, toggle: (TaskE
                     },
                 contentAlignment = Alignment.Center
             ) {
-                AnimatedVisibility(task.completed, enter = fadeIn() + androidx.compose.animation.scaleIn(initialScale = .6f), exit = fadeOut() + androidx.compose.animation.scaleOut(targetScale = .6f)) {
+                androidx.compose.animation.AnimatedVisibility(task.completed, enter = fadeIn() + androidx.compose.animation.scaleIn(initialScale = .6f), exit = fadeOut() + androidx.compose.animation.scaleOut(targetScale = .6f)) {
                     Text("✓", color = MaterialTheme.colorScheme.onPrimary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                 }
             }
@@ -415,7 +417,7 @@ private fun TaskRow(task: TaskEntity, edit: (TaskEntity) -> Unit, toggle: (TaskE
                 if (task.duration > 0) add(formatMinutes(task.duration))
                 task.category.takeIf { it != "Личное" }?.let { add(it) }
             }
-            AnimatedVisibility(meta.isNotEmpty(), enter = fadeIn(), exit = fadeOut()) {
+            androidx.compose.animation.AnimatedVisibility(meta.isNotEmpty(), enter = fadeIn(), exit = fadeOut()) {
                 Text(meta.joinToString(" · "), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp, modifier = Modifier.padding(top = 3.dp), maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
@@ -579,6 +581,7 @@ private fun SettingRow(title: String, subtitle: String, control: @Composable () 
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TaskEditor(existing: TaskEntity?, defaultDate: String, onDismiss: () -> Unit, onSave: (TaskEntity) -> Unit) {
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -600,7 +603,7 @@ private fun TaskEditor(existing: TaskEntity?, defaultDate: String, onDismiss: ()
     ) {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 22.dp).padding(bottom = 24.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(if (existing == null) "Новое действие" else "Изменить", style = MaterialTheme.typography.headlineMedium, Modifier.weight(1f))
+                Text(if (existing == null) "Новое действие" else "Изменить", modifier = Modifier.weight(1f), style = MaterialTheme.typography.headlineMedium)
                 TextButton(onClick = onDismiss) { Text("Закрыть", color = Secondary) }
             }
             Spacer(Modifier.height(14.dp))
@@ -619,7 +622,7 @@ private fun TaskEditor(existing: TaskEntity?, defaultDate: String, onDismiss: ()
             TextButton({ advanced = !advanced }, contentPadding = PaddingValues(horizontal = 0.dp, vertical = 8.dp)) {
                 Text(if (advanced) "Скрыть детали" else "Дополнительно", color = Green)
             }
-            AnimatedVisibility(
+            androidx.compose.animation.AnimatedVisibility(
                 visible = advanced,
                 enter = fadeIn() + slideInVertically { it / 4 },
                 exit = fadeOut() + slideOutVertically { it / 4 }
