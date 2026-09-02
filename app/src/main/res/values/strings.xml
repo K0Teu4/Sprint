@@ -1,1 +1,8 @@
-<resources><string name="app_name">Sprint</string></resources>
+<resources>
+    <string name="app_name">Sprint</string>
+    <string name="widget_today">Today</string>
+    <string name="widget_active">active</string>
+    <string name="widget_done">done</string>
+    <string name="widget_empty">No tasks today</string>
+    <string name="widget_description">Minimal today planner</string>
+</resources>

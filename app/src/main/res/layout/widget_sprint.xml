@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="@drawable/widget_background">
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical">
+        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+            <TextView android:id="@+id/widget_title" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Sprint" android:textColor="#F3F4EF" android:textSize="16sp" android:textStyle="bold" />
+            <TextView android:id="@+id/widget_date" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text="Сегодня" android:textColor="#92988F" android:textSize="11sp" />
+        </LinearLayout>
+        <TextView android:id="@+id/widget_count" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#BFE8D0" android:textSize="10sp" />
+        <TextView android:id="@+id/widget_add" android:layout_width="34dp" android:layout_height="34dp" android:gravity="center" android:text="+" android:textColor="#111412" android:textSize="22sp" android:background="@drawable/widget_add_background" />
+    </LinearLayout>
+    <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginTop="10dp" android:background="#242925" />
+    <TextView android:id="@+id/widget_task_1" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:maxLines="1" android:ellipsize="end" android:textColor="#F3F4EF" android:textSize="12sp" />
+    <TextView android:id="@+id/widget_task_2" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:maxLines="1" android:ellipsize="end" android:textColor="#F3F4EF" android:textSize="12sp" />
+    <TextView android:id="@+id/widget_task_3" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:maxLines="1" android:ellipsize="end" android:textColor="#F3F4EF" android:textSize="12sp" />
+    <TextView android:id="@+id/widget_task_4" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:maxLines="1" android:ellipsize="end" android:textColor="#F3F4EF" android:textSize="12sp" />
+</LinearLayout>

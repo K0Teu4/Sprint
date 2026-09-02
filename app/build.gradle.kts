@@ -13,8 +13,8 @@ android {
         applicationId = "ru.sprint.app"
         minSdk = 24
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.1"
+        versionCode = 3
+        versionName = "1.3"
     }
 
     buildTypes {
