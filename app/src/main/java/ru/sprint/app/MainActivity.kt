@@ -11,6 +11,8 @@ import java.time.LocalDate
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.view.WindowCompat
@@ -32,9 +34,9 @@ class MainActivity : ComponentActivity() {
         setContent { SprintApp(db.taskDao(), openQuickAdd = openQuickAdd, onQuickAddConsumed = { openQuickAdd = false }) }
     }
 
-    override fun onNewIntent(intent: Intent?) {
+    override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        if (intent?.getBooleanExtra(EXTRA_OPEN_QUICK_ADD, false) == true) {
+        if (intent.getBooleanExtra(EXTRA_OPEN_QUICK_ADD, false)) {
             openQuickAdd = true
         }
     }

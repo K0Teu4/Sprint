@@ -12,6 +12,7 @@ import android.view.View
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
 import ru.sprint.app.MainActivity
 import ru.sprint.app.R
 import ru.sprint.app.data.PlannerDatabase
@@ -36,7 +37,7 @@ class SprintWidgetProvider : AppWidgetProvider() {
         private fun updateAll(context: Context, manager: AppWidgetManager, ids: IntArray) {
             CoroutineScope(Dispatchers.IO).launch {
                 val tasks = PlannerDatabase.get(context).taskDao().observeAll()
-                kotlinx.coroutines.flow.first(tasks).let { all ->
+                tasks.first().let { all ->
                     val today = LocalDate.now().toString()
                     val day = all.filter { it.date == today && it.parentId == null }
                         .sortedWith(compareBy<TaskEntity> { it.completed }.thenByDescending { it.priority }.thenBy { it.time ?: "99:99" }.thenBy { it.id })
