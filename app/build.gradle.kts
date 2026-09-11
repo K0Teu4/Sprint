@@ -1,4 +1,4 @@
-﻿plugins {
+plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
@@ -37,8 +37,9 @@ android {
 }
 
 dependencies {
-    implementation(libs.androidx.work.runtime.ktx)
+
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.robolectric:robolectric:4.11.1")
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.2")
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

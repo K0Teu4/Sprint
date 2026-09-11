@@ -56,7 +56,6 @@ import org.json.JSONObject
 import ru.sprint.app.ReminderReceiver
 import ru.sprint.app.data.TaskDao
 import ru.sprint.app.data.TaskEntity
-import ru.sprint.app.widget.SprintWidgetProvider
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -134,7 +133,6 @@ fun SprintApp(dao: TaskDao, openQuickAdd: Boolean = false, onQuickAddConsumed: (
                 if (imported.isEmpty()) snackbarHostState.showSnackbar(ui.v("Файл не содержит задач", "The file contains no tasks"))
                 else {
                     val count = restoreImportedTasks(context, dao, imported, notifications)
-                    SprintWidgetProvider.refresh(context)
                     snackbarHostState.showSnackbar(ui.v("Импортировано: $count", "Imported: $count"))
                 }
             }.onFailure { snackbarHostState.showSnackbar(ui.v("Не удалось прочитать файл", "Could not read file")) }
@@ -161,7 +159,7 @@ fun SprintApp(dao: TaskDao, openQuickAdd: Boolean = false, onQuickAddConsumed: (
                         "week" -> WeekScreen(tasks, selectedDate, ui, showCompleted, categoryFilter, { categoryFilter = it }, { selectedDate = it }, { d -> selectedDate = LocalDate.parse(selectedDate).plusWeeks(d.toLong()).toString() }, { quickAddOpen = true }, { searchOpen = true },
                             edit = { editing = it; subtaskParent = null; editorOpen = true },
                             addSubtask = { subtaskParent = it; editing = null; selectedDate = it.date; editorOpen = true },
-                            toggle = { task -> if (haptics) root.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK); scope.launch { val done = !task.completed; dao.update(task.copy(completed = done, completedAt = if (done) System.currentTimeMillis() else null)); if (done) cancelReminder(context, task) else if (notifications) schedule(context, task); SprintWidgetProvider.refresh(context) } },
+                            toggle = { task -> if (haptics) root.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK); scope.launch { val done = !task.completed; dao.update(task.copy(completed = done, completedAt = if (done) System.currentTimeMillis() else null)); if (done) cancelReminder(context, task) else if (notifications) schedule(context, task); } },
                             delete = { task -> scope.launch {
                                 val descendants = tasks.filter { it.parentId == task.id }
                                 dao.delete(task); descendants.forEach { dao.delete(it) }; cancelReminder(context, task); descendants.forEach { cancelReminder(context, it) }
@@ -170,24 +168,23 @@ fun SprintApp(dao: TaskDao, openQuickAdd: Boolean = false, onQuickAddConsumed: (
                                     val id = dao.insert(task.copy(id = 0L, seriesId = null))
                                     val restoredRoot = task.copy(id = id, seriesId = if (task.recurrence != "NONE") id else null)
                                     dao.update(restoredRoot)
-                                    if (notifications) schedule(context, restoredRoot)
+                                    if (notifications) schedule(context, restoredRoot); descendants.forEach { child -> val cid = dao.insert(child.copy(id = 0L, parentId = id)); schedule(context, child.copy(id = cid, parentId = id)) }
                                 }
-                                SprintWidgetProvider.refresh(context)
-                            } })
+                                } })
                         "month" -> MonthScreen(tasks, selectedDate, ui, { selectedDate = it }, { selectedDate = it; screen = "week" })
                         "year" -> YearScreen(tasks, selectedDate, ui, { selectedDate = it })
                         else -> SettingsScreen(ui, notifications, haptics, english, showCompleted, { enabled ->
                             notifications = enabled; prefs(context).edit().putBoolean("notifications", enabled).apply()
                             if (enabled) { if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS) else tasks.filter { it.reminder && !it.completed }.forEach { schedule(context, it) } }
                             else tasks.forEach { cancelReminder(context, it) }
-                        }, { haptics = it; prefs(context).edit().putBoolean("haptics", it).apply() }, { english = it; prefs(context).edit().putBoolean("english", it).apply(); SprintWidgetProvider.refresh(context) }, { showCompleted = it; prefs(context).edit().putBoolean("show_completed", it).apply() },
-                            export = { exportLauncher.launch("Sprint-backup-${LocalDate.now()}.json") }, import = { importLauncher.launch(arrayOf("application/json", "text/json", "text/plain")) }, resetOnboarding = { onboarding = true; prefs(context).edit().putBoolean("onboarding", false).apply() }, clear = { scope.launch { dao.deleteAll(); tasks.forEach { cancelReminder(context, it) }; SprintWidgetProvider.refresh(context); snackbarHostState.showSnackbar(ui.v("Все задачи удалены", "All tasks deleted")) } })
+                        }, { haptics = it; prefs(context).edit().putBoolean("haptics", it).apply() }, { english = it; prefs(context).edit().putBoolean("english", it).apply(); }, { showCompleted = it; prefs(context).edit().putBoolean("show_completed", it).apply() },
+                            export = { exportLauncher.launch("Sprint-backup-${LocalDate.now()}.json") }, import = { importLauncher.launch(arrayOf("application/json", "text/json", "text/plain")) }, resetOnboarding = { onboarding = true; prefs(context).edit().putBoolean("onboarding", false).apply() }, clear = { scope.launch { dao.deleteAll(); tasks.forEach { cancelReminder(context, it) }; snackbarHostState.showSnackbar(ui.v("Все задачи удалены", "All tasks deleted")) } })
                     }
                 }
             }
         }
         if (quickAddOpen) QuickAddSheet(ui, selectedDate, haptics, onDismiss = { quickAddOpen = false }, onDetailed = { draft -> quickAddOpen = false; editing = null; subtaskParent = null; detailedDraft = draft; editorOpen = true }) { draft ->
-            scope.launch { saveNewTask(context, dao, draft, notifications); selectedDate = draft.date; quickAddOpen = false; SprintWidgetProvider.refresh(context) }
+            scope.launch { saveNewTask(context, dao, draft, notifications); selectedDate = draft.date; quickAddOpen = false; }
         }
         if (editorOpen) TaskEditor(existing = editing, draft = detailedDraft, parent = subtaskParent, defaultDate = selectedDate, notificationsEnabled = notifications, hapticsEnabled = haptics, ui = ui, onDismiss = { editorOpen = false; subtaskParent = null; detailedDraft = null }) { task ->
             scope.launch {
@@ -210,8 +207,7 @@ fun SprintApp(dao: TaskDao, openQuickAdd: Boolean = false, onQuickAddConsumed: (
                         if (notifications) schedule(context, task)
                     }
                 }
-                SprintWidgetProvider.refresh(context)
-            }
+                }
             selectedDate = task.date; editorOpen = false; subtaskParent = null; detailedDraft = null
         }
         if (searchOpen) SearchSheet(tasks, ui, { searchOpen = false }) { editing = it; subtaskParent = null; editorOpen = true; searchOpen = false }
@@ -337,11 +333,71 @@ internal fun parseQuickTask(raw: String, defaultDate: String, forcedCategory: St
     }
 }
 
-@Composable private fun MonthMetric(value: String, label: String, color: Color, modifier: Modifier = Modifier) { Column(modifier.clip(RoundedCornerShape(17.dp)).background(Elevated).padding(13.dp)) { Text(value, fontSize = 19.sp, fontWeight = FontWeight.SemiBold); Text(label, color = color, fontSize = 10.sp, modifier = Modifier.padding(top = 2.dp)) } }
+@Composable private fun MonthMetric(value: String, label: String, color: Color, modifier: Modifier = Modifier) { Column(modifier.clip(RoundedCornerShape(17.dp)).background(Elevated).padding(13.dp)) { Text(value, fontSize = 19.sp, fontWeight = FontWeight.SemiBold); Text(label, color = color, fontSize = 9.sp, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 2.dp)) } }
 
-@Composable private fun YearScreen(tasks: List<TaskEntity>, selected: String, ui: UiText, onSelect: (String) -> Unit) { var year by rememberSaveable { mutableIntStateOf(LocalDate.parse(selected).year) }; val today = LocalDate.now(); LazyColumn(contentPadding = PaddingValues(bottom = 30.dp), modifier = Modifier.drawBehind { drawCircle(Violet.copy(alpha = .025f), 250.dp.toPx(), androidx.compose.ui.geometry.Offset(size.width * .92f, 90.dp.toPx())) }) { item { Row(Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 20.dp), verticalAlignment = Alignment.CenterVertically) { Column(Modifier.weight(1f)) { Text(year.toString(), style = MaterialTheme.typography.headlineLarge) }; if (year != today.year) TextButton({ year = today.year }) { Text(ui.v("Сегодня", "Today"), color = Mint) }; IconButton({ year-- }) { Text("‹", fontSize = 31.sp) }; IconButton({ year++ }) { Text("›", fontSize = 31.sp) } } }; items((1..12).toList()) { m -> YearMonthBlock(year, m, tasks, selected, ui, onSelect) }; item { val yearTasks = tasks.filter { it.date.startsWith(year.toString()) }; val completed = yearTasks.count { it.completed }; Column(Modifier.padding(22.dp)) { Text(ui.v("Статистика за год", "Year stats"), style = MaterialTheme.typography.titleLarge); Spacer(Modifier.height(8.dp)); Text("${ui.v("Всего задач", "Total tasks")}: ${yearTasks.size}", color = TextSecondary); Text("${ui.v("Выполнено", "Completed")}: $completed", color = TextSecondary) } } } }
-@Composable private fun YearMonthBlock(year: Int, monthNumber: Int, tasks: List<TaskEntity>, selected: String, ui: UiText, onSelect: (String) -> Unit) { val first = LocalDate.of(year, monthNumber, 1); val start = first.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)); val count = first.lengthOfMonth(); val totalDays = java.time.temporal.ChronoUnit.DAYS.between(start, first.plusDays(count.toLong() - 1)) + 1; val weeks = ((totalDays + 6) / 7); val days = (0 until weeks * 7).map { start.plusDays(it.toLong()) }; val monthTasks = tasks.filter { it.date.startsWith("%04d-%02d-".format(year, monthNumber)) }; val taskCounts = monthTasks.groupBy { it.date }.mapValues { it.value.size }; Column(Modifier.padding(horizontal = 22.dp, vertical = 8.dp)) { Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { Text(ui.month(first), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f)); Text("${monthTasks.size} ${ui.v("дел", "tasks")}", color = TextSecondary, fontSize = 10.sp) }; Spacer(Modifier.height(9.dp)); Row(Modifier.fillMaxWidth()) { (0..6).forEach { Text(ui.weekday(it).take(2), color = TextSecondary, fontSize = 8.sp, textAlign = TextAlign.Center, modifier = Modifier.weight(1f)) } }; days.chunked(7).forEach { row -> Row(Modifier.fillMaxWidth()) { row.forEach { date -> val inMonth = date.monthValue == monthNumber; val selectedDay = date.toString() == selected; val count = taskCounts[date.toString()] ?: 0; val hasTask = count > 0; val isToday = date == LocalDate.now(); Box(Modifier.weight(1f).height(27.dp).padding(1.dp).clip(RoundedCornerShape(6.dp)).background(if (selectedDay) GradientDark else SolidColor(Color.Transparent)).clickable(enabled = inMonth) { onSelect(date.toString()) }, Alignment.Center) { Text(date.dayOfMonth.toString(), color = if (!inMonth) TextSecondary.copy(alpha = .2f) else if (selectedDay) TextPrimary else if (isToday) Mint else TextSecondary, fontSize = 9.sp, fontWeight = if (isToday || selectedDay) FontWeight.Bold else FontWeight.Normal); if (inMonth && !selectedDay) { val heatColor = when { count >= 3 -> Mint; count == 2 -> Mint.copy(alpha = 0.6f); count == 1 -> Mint.copy(alpha = 0.3f); else -> Color.Transparent }; Box(Modifier.align(Alignment.BottomCenter).offset(y = (-2).dp).size(3.dp).clip(CircleShape).background(heatColor)) } } } } } } }
+@Composable private fun YearScreen(tasks: List<TaskEntity>, selected: String, ui: UiText, onSelect: (String) -> Unit) {
+    var year by rememberSaveable { mutableIntStateOf(LocalDate.parse(selected).year) }
+    val today = LocalDate.now()
+    // Оптимизация: собираем даты задач в Set для мгновенного поиска O(1)
+    val taskDatesInYear = remember(tasks, year) { tasks.filter { it.date.startsWith(year.toString()) }.map { it.date }.toSet() }
+    val totalTasksInYear = remember(tasks, year) { tasks.count { it.date.startsWith(year.toString()) } }
+    val completedInYear = remember(tasks, year) { tasks.count { it.date.startsWith(year.toString()) && it.completed } }
+    
+    LazyColumn(contentPadding = PaddingValues(bottom = 30.dp), modifier = Modifier.drawBehind { drawCircle(Violet.copy(alpha = .025f), 250.dp.toPx(), androidx.compose.ui.geometry.Offset(size.width * .92f, 90.dp.toPx())) }) {
+        item {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 20.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) { Text(year.toString(), style = MaterialTheme.typography.headlineLarge) }
+                if (year != today.year) TextButton({ year = today.year }) { Text(ui.v("Сегодня", "Today"), color = Mint) }
+                IconButton({ year-- }) { Text("‹", fontSize = 31.sp) }
+                IconButton({ year++ }) { Text("›", fontSize = 31.sp) }
+            }
+        }
+        items((1..12).toList(), key = { it }) { m -> YearMonthBlock(year, m, selected, ui, onSelect, taskDatesInYear) }
+        item {
+            Column(Modifier.padding(horizontal = 22.dp, vertical = 16.dp)) {
+                Text(ui.v("Итоги года", "Year summary"), style = MaterialTheme.typography.titleLarge, color = TextPrimary)
+                Spacer(Modifier.height(8.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text(ui.v("Всего задач", "Total"), color = TextSecondary); Text("", fontWeight = FontWeight.Bold, color = Mint) }
+                Spacer(Modifier.height(4.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text(ui.v("Выполнено", "Done"), color = TextSecondary); Text("", fontWeight = FontWeight.Bold, color = Violet) }
+            }
+        }
+    }
+}
 
+@Composable private fun YearMonthBlock(year: Int, monthNumber: Int, selected: String, ui: UiText, onSelect: (String) -> Unit, taskDatesInYear: Set<String>) {
+    val first = LocalDate.of(year, monthNumber, 1)
+    val start = first.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+    val count = first.lengthOfMonth()
+    // Исправление бага: правильное вычисление количества недель
+    val totalDays = java.time.temporal.ChronoUnit.DAYS.between(start, first.plusDays(count.toLong() - 1)) + 1
+    val weeks = ((totalDays + 6) / 7)
+    val days = (0 until weeks * 7).map { start.plusDays(it.toLong()) }
+    val monthTaskCount = taskDatesInYear.count { it.startsWith("%04d-%02d-".format(year, monthNumber)) }
+    
+    Column(Modifier.padding(horizontal = 22.dp, vertical = 8.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(ui.month(first), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+            Text(" ", color = TextSecondary, fontSize = 10.sp)
+        }
+        Spacer(Modifier.height(9.dp))
+        Row(Modifier.fillMaxWidth()) { (0..6).forEach { Text(ui.weekday(it).take(2), color = TextSecondary, fontSize = 8.sp, textAlign = TextAlign.Center, modifier = Modifier.weight(1f)) } }
+        days.chunked(7).forEach { row ->
+            Row(Modifier.fillMaxWidth()) {
+                row.forEach { date ->
+                    val inMonth = date.monthValue == monthNumber
+                    val selectedDay = date.toString() == selected
+                    val hasTask = taskDatesInYear.contains(date.toString()) // Мгновенная проверка!
+                    val isToday = date == LocalDate.now()
+                    Box(Modifier.weight(1f).height(27.dp).padding(1.dp).clip(RoundedCornerShape(6.dp)).background(if (selectedDay) GradientDark else SolidColor(Color.Transparent)).clickable(enabled = inMonth) { onSelect(date.toString()) }, Alignment.Center) {
+                        Text(date.dayOfMonth.toString(), color = if (!inMonth) TextSecondary.copy(alpha = .2f) else if (selectedDay) TextPrimary else if (isToday) Mint else TextSecondary, fontSize = 9.sp, fontWeight = if (isToday || selectedDay) FontWeight.Bold else FontWeight.Normal)
+                        if (hasTask && inMonth && !selectedDay) Box(Modifier.align(Alignment.BottomCenter).offset(y = (-2).dp).size(3.dp).clip(CircleShape).background(Mint))
+                    }
+                }
+            }
+        }
+    }
+}
 @Composable private fun SettingsScreen(ui: UiText, notifications: Boolean, haptics: Boolean, english: Boolean, showCompleted: Boolean, setNotifications: (Boolean) -> Unit, setHaptics: (Boolean) -> Unit, setEnglish: (Boolean) -> Unit, setShowCompleted: (Boolean) -> Unit, export: () -> Unit, import: () -> Unit, resetOnboarding: () -> Unit, clear: () -> Unit) { var confirm by remember { mutableStateOf(false) }; LazyColumn(contentPadding = PaddingValues(bottom = 28.dp)) { item { Column(Modifier.padding(horizontal = 22.dp, vertical = 22.dp)) { Text(ui.v("Настройки", "Settings"), style = MaterialTheme.typography.headlineLarge) } }; item { SettingBlock(ui.v("Язык", "Language")) { SettingRow(ui.v("Интерфейс", "Interface"), if (english) "English" else "Русский") { LanguageSwitch(english, setEnglish) } } }; item { SettingBlock(ui.v("Напоминания", "Reminders")) { SettingRow(ui.v("Уведомления", "Notifications"), if (notifications) ui.v("Напоминания о задачах", "Task reminders") else ui.v("Выключены", "Off")) { Switch(notifications, setNotifications) } } }; item { SettingBlock(ui.v("Поведение", "Behavior")) { SettingRow(ui.v("Микровибрация", "Haptic feedback"), ui.v("Лёгкий отклик при действиях", "Light feedback for actions")) { Switch(haptics, setHaptics) }; SettingRow(ui.v("Показывать выполненные", "Show completed"), ui.v("В списке недели", "In the week list")) { Switch(showCompleted, setShowCompleted) } } }; item { SettingBlock(ui.v("Данные", "Data")) { SettingAction(ui.v("Экспортировать резервную копию", "Export backup"), ui.v("JSON-файл со всеми задачами", "JSON file with all tasks"), export); SettingAction(ui.v("Импортировать задачи", "Import tasks"), ui.v("Добавит задачи из JSON к текущим", "Adds tasks from a JSON backup"), import); Text(ui.v("Удалить все задачи", "Delete all tasks"), color = Danger, fontWeight = FontWeight.SemiBold, modifier = Modifier.fillMaxWidth().clickable { confirm = true }.padding(horizontal = 22.dp, vertical = 18.dp)) } }; item { SettingBlock(ui.v("Приложение", "App")) { SettingAction(ui.v("Показать знакомство заново", "Show onboarding again"), ui.v("Повторно открыть первый экран", "Open the introduction again"), resetOnboarding); Text("Sprint 1.0", color = TextSecondary, fontSize = 11.sp, modifier = Modifier.padding(horizontal = 22.dp, vertical = 15.dp)) } } }; if (confirm) AlertDialog(onDismissRequest = { confirm = false }, title = { Text(ui.v("Удалить все задачи?", "Delete all tasks?")) }, text = { Text(ui.v("Это действие нельзя отменить.", "This action cannot be undone."), color = TextSecondary) }, confirmButton = { TextButton({ confirm = false; clear() }) { Text(ui.v("Удалить всё", "Delete all"), color = Danger) } }, dismissButton = { TextButton({ confirm = false }) { Text(ui.v("Отмена", "Cancel")) } }) }
 @Composable private fun SettingAction(title: String, subtitle: String, onClick: () -> Unit) { Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 22.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) { Column(Modifier.weight(1f)) { Text(title, fontWeight = FontWeight.Medium); Text(subtitle, color = TextSecondary, fontSize = 11.sp, modifier = Modifier.padding(top = 3.dp)) }; Text("›", color = TextSecondary, fontSize = 22.sp) } }
 @Composable private fun LanguageSwitch(english: Boolean, setEnglish: (Boolean) -> Unit) { Row(Modifier.clip(RoundedCornerShape(12.dp)).background(Elevated).padding(3.dp)) { listOf(false to "RU", true to "EN").forEach { (value, label) -> Box(Modifier.clip(RoundedCornerShape(9.dp)).background(if (english == value) Gradient else SolidColor(Color.Transparent)).clickable { setEnglish(value) }.padding(horizontal = 12.dp, vertical = 7.dp)) { Text(label, color = if (english == value) Color(0xFF101311) else TextSecondary, fontSize = 11.sp, fontWeight = FontWeight.Bold) } } } }
@@ -394,25 +450,6 @@ private suspend fun restoreImportedTasks(context: Context, dao: TaskDao, importe
         count++
     }
     return count
-}
-
-private suspend fun restoreDeletedTasks(context: Context, dao: TaskDao, removed: List<TaskEntity>, notifications: Boolean) {
-    val oldToNew = mutableMapOf<Long, Long>()
-    val roots = removed.filter { it.parentId == null }.sortedWith(compareBy<TaskEntity> { if (it.recurrence != "NONE") 0 else 1 }.thenBy { it.date }.thenBy { it.id })
-    roots.forEach { source ->
-        val newId = dao.insert(source.copy(id = 0L, seriesId = null))
-        oldToNew[source.id] = newId
-        val restored = source.copy(id = newId, seriesId = if (source.recurrence != "NONE") newId else source.seriesId?.let { oldToNew[it] ?: it })
-        dao.update(restored)
-        if (notifications) schedule(context, restored)
-    }
-    removed.filter { it.parentId != null }.forEach { source ->
-        val parent = oldToNew[source.parentId] ?: source.parentId ?: return@forEach
-        val series = source.seriesId?.let { oldToNew[it] ?: it }
-        val restored = source.copy(id = 0L, parentId = parent, seriesId = series, recurrence = "NONE")
-        val newId = dao.insert(restored)
-        if (notifications) schedule(context, restored.copy(id = newId))
-    }
 }
 
 private suspend fun saveNewTask(context: Context, dao: TaskDao, task: TaskEntity, notifications: Boolean) {
