@@ -1,5 +1,4 @@
 ﻿package ru.sprint.app.data.db.dao
-import ru.sprint.app.widget.SprintWidgetProvider
 
 import androidx.room.Dao
 import androidx.room.Insert
@@ -30,11 +29,9 @@ interface TaskDao {
 
     @Update
     suspend fun update(task: TaskEntity)
-        SprintWidgetProvider.refresh(context)
 
     @Query("DELETE FROM tasks WHERE id = :id")
     suspend fun deleteById(id: Long)
-        SprintWidgetProvider.refresh(context)
 
     @Query("DELETE FROM tasks")
     suspend fun clear()
@@ -45,4 +42,3 @@ interface TaskDao {
     @Query("UPDATE tasks SET date = :newDateMillis WHERE id = :id")
     suspend fun moveToDay(id: Long, newDateMillis: Long)
 }
-
