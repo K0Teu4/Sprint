@@ -1,5 +1,4 @@
 package ru.sprint.app.data.db.dao
-import ru.sprint.app.widget.SprintWidgetProvider
 
 import androidx.room.Dao
 import androidx.room.Insert

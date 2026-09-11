@@ -20,7 +20,6 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import ru.sprint.app.data.PlannerDatabase
 import ru.sprint.app.ui.SprintApp
-import ru.sprint.app.widget.SprintWidgetProvider
 
 class MainActivity : ComponentActivity() {
     private var openQuickAdd by androidx.compose.runtime.mutableStateOf(false)
@@ -94,8 +93,7 @@ class ReminderRescheduleReceiver : BroadcastReceiver() {
             try {
                 val tasks = PlannerDatabase.get(context).taskDao().pendingReminders(LocalDate.now().toString())
                 tasks.forEach { ru.sprint.app.ui.scheduleReminderFromSystem(context, it) }
-                SprintWidgetProvider.refresh(context)
-            } finally {
+                } finally {
                 pendingResult.finish()
             }
         }
