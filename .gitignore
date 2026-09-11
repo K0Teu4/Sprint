@@ -5,3 +5,7 @@ local.properties
 *.iml
 captures/
 .cxx/
+# Release signing
+*.keystore
+keystore.properties
+*.jks
